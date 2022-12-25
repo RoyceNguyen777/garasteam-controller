@@ -3,7 +3,7 @@ import { ControllerLeft, ControllerRight, MenuIcon, muteIcon, RocketIcon, settin
 import Controller from './components/Controller';
 import RangeInput from './components/RangeInput';
 import SwitchButton from './components/SwitchButton';
-
+import React from 'react'
 const Command = {
   // Reference: __ref.grobot.cpp
   // Port 4
@@ -96,33 +96,41 @@ const ble = {
       ble.charact.rx.startNotifications()
       ble.charact.rx.addEventListener('characteristicvaluechanged', ble.handle.onmessage)
       ble.isConnected = true
+      window.setConnectedState(true)
     }
   }
 }
 window.ble = ble
 
-  const click = {
-    Connect: async () => {
-      await ble.func.setup()
-    },
-    Disconnect: async ()=> {
-      await ble.device.gatt.disconnect()
-      ble.isConnected = false
-    },
-    SendCommand: async (Command) => {
-      if (ble.isConnected)
+const click = {
+  Connect: async () => {
+    await ble.func.setup()
+  },
+  Disconnect: async ()=> {
+    await ble.device.gatt.disconnect()
+    ble.isConnected = false
+    window.setConnectedState(false)
+  },
+  SendCommand: async (Command) => {
+    if (ble.isConnected) {
       await ble.func.write(Command)
-    },
-    Release: async () => {
-      console.log("button release")
-      await click.SendCommand(Command.MoveStop)
     }
+    else {
+      console.log("MUST CONNECT")
+      // await click.Connect()
+    }
+  },
+  Release: async () => {
+    console.log("button release")
+    await click.SendCommand(Command.MoveStop)
   }
+}
 
 
 
 function App() {
-
+  const [connectedState, setConnectedState] = React.useState(false)
+  window.setConnectedState = setConnectedState
   const handleSetting = async() => {
     console.log("Setting")
     if (!ble.isConnected) {
@@ -185,6 +193,7 @@ function App() {
     await click.SendCommand(Command.ServoAngle[parseInt(value, 10)])
   }
   
+
   return (
     <div className="App">
       <div className='header'>
@@ -193,6 +202,8 @@ function App() {
             <SwitchButton
               handleTurnOff={() => { console.log("Turn Off") }}
               handleTurnOn={() => { console.log("Turn On") }}
+
+              value = {connectedState}
             />
             <SwitchButton
               iconTurnOn={volumnIcon}
