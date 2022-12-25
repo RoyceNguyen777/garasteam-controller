@@ -38,6 +38,6 @@ const InputRange = styled.input.attrs({
 `
 export default function RangeInput({ onChange, ...rest }) {
   return (
-    <InputRange bg={inputBg} defaultValue={0} onChange={onChange} />
+    <InputRange bg={inputBg} defaultValue={0} max={11} onChange={onChange} {...rest} />
   )
 }

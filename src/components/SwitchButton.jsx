@@ -16,12 +16,13 @@ export const Button = styled.button`
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 `
 
-export default function SwitchButton({ handleTurnOn, handleTurnOff, iconTurnOn, iconTurnOff, icon, onClick, ...rest }) {
+export default function SwitchButton({ handleTurnOn, handleTurnOff, iconTurnOn, iconTurnOff, icon, onClick, handleSetState, ...rest }) {
   const [isTurnOn, setIsTurnOn] = useState(false)
 
   const handleClick = () => {
     if (!icon) setIsTurnOn(!isTurnOn)
     onClick?.()
+    handleSetState(setIsTurnOn)
   }
 
   useEffect(() => {
