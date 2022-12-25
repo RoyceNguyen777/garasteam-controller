@@ -216,12 +216,12 @@ function App() {
       </div>
       <div className='controller'>
         <div className='controller-left'>
-          <Controller position={"up"} onMouseUp={handleRelease} onClick={handleUp} />
-          <Controller position={"down"} onMouseUp={handleRelease} onClick={handleDown} />
+          <Controller position={"up"} onMouseUp={handleRelease} onMouseDown={handleUp} />
+          <Controller position={"down"} onMouseUp={handleRelease} onMouseDown={handleDown} />
         </div>
         <div className='controller-right'>
-          <Controller position={"left"} onMouseUp={handleRelease} onClick={handleLeft} />
-          <Controller position={"right"} onMouseUp={handleRelease} onClick={handleRight} />
+          <Controller position={"left"} onMouseUp={handleRelease} onMouseDown={handleLeft} />
+          <Controller position={"right"} onMouseUp={handleRelease} onMouseDown={handleRight} />
         </div>
       </div>
     </div>
