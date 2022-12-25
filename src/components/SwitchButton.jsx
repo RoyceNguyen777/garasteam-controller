@@ -38,6 +38,7 @@ export default function SwitchButton({ handleTurnOn, handleTurnOff, iconTurnOn, 
       background={isTurnOn && "green"}
       onClick={handleClick}
       iconSwitch={!icon ? !isTurnOn ? iconTurnOn : iconTurnOff : icon}
+      value={isTurnOn}
       {...rest} />
   )
 }

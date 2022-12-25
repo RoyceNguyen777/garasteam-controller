@@ -36,8 +36,8 @@ const InputRange = styled.input.attrs({
     background-image: ${props => `url(${props.bg})`};
   }
 `
-export default function RangeInput({ onChange, ...rest }) {
+export default function RangeInput({ onChange, min, max, ...rest }) {
   return (
-    <InputRange bg={inputBg} defaultValue={0} max={11} onChange={onChange} {...rest} />
+    <InputRange bg={inputBg} defaultValue={0} min={min} max={max} onChange={onChange} />
   )
 }

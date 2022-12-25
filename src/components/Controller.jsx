@@ -39,7 +39,7 @@ const ControllerButton = styled(Button)`
     
 `
 
-export default function Controller({ position, onClick }) {
+export default function Controller({ position, onClick, onMouseUp, onMouseDown }) {
     const ref = useRef()
 
     return (
@@ -51,6 +51,8 @@ export default function Controller({ position, onClick }) {
                     style={{ ...(position === "left" ? { marginRight: 20 } : position === "up" ? { marginBottom: 20 } : position === "right" ? { marginLeft: 20 } : "") }} />
             }
             onClick={onClick}
+            onMouseUp={onMouseUp}
+            onMouseDown={onMouseDown}
         />
     )
 }
