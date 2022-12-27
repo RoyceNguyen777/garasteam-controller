@@ -117,185 +117,140 @@ const ble = {
 window.ble = ble;
 
 
-async function connect(){
-  await ble.func.setup()
-  await send(Command.ServoModeOff)
-
-  await window.setCurrentRange(window.currentRange)
-}
-async function disconnect(){
-  await ble.device.gatt.disconnect()
-  ble.isConnected = false
-  // update the first led
-  window.setConnectedState(false)
-}
-
-async function send(command){
-  console.log("send", command)
-  if (ble.isConnected){
-    await ble.func.write(command)
-    await sleep(33)
-  }
-}
-
-// 4 button state
-const state = {
-  MoveForward: false,
-  MoveBackward: false,
-  TurnLeft: false,
-  TurnRight: false
-}
-window.state = state
-window.isSending = false
-
-async function sleep(ms){
-  await new Promise((resolve, reject) => {
-    setTimeout(() => {
-      resolve()
-    },ms)
-  })
-}
-
-async function sendToDevice(){
-  if (window.isSending) return
-  if (ble.isConnected == false) return
-  window.isSending = true
-  try {
-    let isMoving = false
-    let isValid = true
-
-    if (state.MoveBackward && state.MoveForward ||
-      (state.TurnLeft && state.TurnRight)
-    ){
-      console.log("wtf");
-      return
-    }  
-
-    let count = 0
-    if (state.MoveBackward) count += 1
-    if (state.MoveForward) count += 1
-    if (state.TurnLeft) count += 1
-    if (state.TurnRight) count += 1
-
-    if (count == 1){
-      if (state.MoveForward){
-        await send(Command.MoveForward)
-      }
-      if (state.MoveBackward){
-        await send(Command.MoveBackward)
-      }
-      if (state.TurnLeft){
-        await send(Command.TurnLeft)
-      }
-      if (state.TurnRight){
-        await send(Command.TurnRight)
-      }
+const click = {
+  Connect: async () => {
+    await ble.func.setup();
+    await send(Command.ServoModeOff)
+    await send(Command.ServoAngle[7])
+  },
+  Disconnect: async () => {
+    await ble.device.gatt.disconnect();
+    ble.isConnected = false;
+    window.setConnectedState(false);
+  },
+  SendCommand: async (Command) => {
+    console.warn("should send command", Command);
+    if (ble.isConnected) {
+      await ble.func.write(Command);
+    } else {
+      console.log("MUST CONNECT");
+      // await click.Connect()
     }
-    else if (count == 2){
-      if (state.MoveForward){
-        await send(Command.MoveForward)
-        state.TurnLeft && await send(Command.TurnLeft)
-        state.TurnRight && await send(Command.TurnRight)
-      }
-      else if (state.MoveBackward){
-        await send(Command.MoveBackward)
-        state.TurnLeft && await send(Command.TurnRightBack)
-        state.TurnRight && await send(Command.TurnLeftBack)
-      }
-    }
-    else if (count == 0) {
-      await send(Command.MoveStop)
-    }
-    
+  },
+  Release: async () => {
+    console.log("button release");
+    await click.SendCommand(Command.MoveStop);
+  },
+};
 
-    // if (state.MoveForward){
-    //   await send(Command.MoveForward)
-    //   isMoving = true
-    // }
-    // else if (state.MoveBackward){
-    //   await send(Command.MoveBackward)
-    //   isMoving = true
-    // }
-    // if (state.TurnLeft){
-    //   await send(Command.TurnLeft)
-    //   isMoving = true
-    // }
-    // else if (state.TurnRight){
-    //   await send(Command.TurnRight)
-    //   isMoving = true
-    // }
-  
-    
-
-  }
-  finally {
-    window.isSending = false
-  }
-}
-
-setInterval(async () => {
-  await sendToDevice()
-}, 100)
-
-
-async function handleTouchStart(event, command){
-  state[command] = true
-  console.log({event,command,state})
-  await sendToDevice()
-}
-async function handleTouchMove(event, command){
-  await sendToDevice()
-}
-async function handleTouchEnd(event, command){
-  console.log({ event, command, state });
-  state[command] = false
-  await sendToDevice()
-}
-
-function App(){
-  const [connectedState, setConnectedState] = React.useState(false)
-  const [currentRange, setCurrentRange] = React.useState(7)
-
-
-  window.setConnectedState = setConnectedState
-  window.setCurrentRange = setCurrentRange
-  window.currentRange = currentRange
-
+function App() {
+  const [connectedState, setConnectedState] = React.useState(false);
+  window.setConnectedState = setConnectedState;
   const handleSetting = async () => {
     console.log("Setting");
     if (!ble.isConnected) {
       await ble.func.setup();
     } else {
-      await disconnect();
+      await click.Disconnect();
     }
   };
   const handleBuzzerOn = async () => {
     console.log("buzzer on");
-    await send(Command.BuzzerOn);
+    await click.SendCommand(Command.BuzzerOn);
   };
   const handleBuzzerOff = async () => {
     console.log("buzzer off");
-    await send(Command.BuzzerOff);
+    await click.SendCommand(Command.BuzzerOff);
   };
   const handleServoMode = async () => {
     console.log("servo mode");
-    await send(Command.ServoModeOn);
+    await click.SendCommand(Command.ServoModeOn);
   };
   const handleMotorMode = async () => {
     console.log("motor mode");
-    await send(Command.ServoModeOff);
+    await click.SendCommand(Command.ServoModeOff);
   };
   const handleRange = async (e) => {
-
     console.log(e.target.value);
     const value = e.target.value;
-    window.setCurrentRange(value)
     console.log("handleRangeChage", { e, value });
     // setRange(value)
-    await send(Command.ServoAngle[parseInt(value, 10)]);
+    await click.SendCommand(Command.ServoAngle[parseInt(value, 10)]);
   };
 
+  /*  
+    This application is not the same with press button and send character
+    Must support 2 button at same time
+    
+    May only send Stop when no button is press
+    Must routinely send
 
+  */
+
+  const state = {
+    [Command.MoveForward]: false,
+    [Command.MoveBackward]: false,
+    [Command.TurnLeft]: false,
+    [Command.TurnRight]: false,
+  };
+  window.state = state;
+
+  window.isSending = false;
+  const sendToDevice = async () => {
+    if (ble.isConnected == false) return;
+    window.isSending = true;
+    try {
+      let stillMoving = false;
+      if (state[Command.MoveForward] === true) {
+        stillMoving = true;
+        await click.SendCommand(Command.MoveForward);
+      }
+      if (state[Command.MoveBackward] === true) {
+        stillMoving = true;
+
+        await click.SendCommand(Command.MoveBackward);
+      }
+      if (state[Command.TurnLeft] === true) {
+        stillMoving = true;
+
+        await click.SendCommand(Command.TurnLeft);
+      }
+      if (state[Command.TurnRight] === true) {
+        stillMoving = true;
+
+        await click.SendCommand(Command.TurnRight);
+      }
+      if (stillMoving === false) {
+        console.log("not moving", JSON.stringify(state));
+
+        await click.SendCommand(Command.MoveStop);
+      }
+    } finally {
+      window.isSending = false;
+    }
+  };
+
+  setInterval(async () => {
+    if (window.isSending == false) {
+      await sendToDevice();
+    }
+  }, 1000);
+
+  const handleTouchStart = async (e, btnchr) => {
+    console.warn("touch start", e, btnchr);
+    state[btnchr] = true;
+  };
+
+  const handleTouchMove = async (e, btnchr) => {
+    console.warn("touch move", e, btnchr);
+    // state[btnchr] = true
+  };
+
+  const handleTouchEnd = async (e, btnchr) => {
+    console.warn("touch end", e, btnchr);
+    // await click.SendCommand(Command.MoveStop)
+    state[btnchr] = false;
+  };
   return (
     <div className="App">
       <div className="header">
@@ -337,7 +292,7 @@ function App(){
               onChange={handleRange}
               min={0}
               max={Command.ServoAngle.length}
-              value={currentRange}
+              value={7}
             />
           </li>
         </ul>
@@ -347,25 +302,25 @@ function App(){
           <Controller
             position={"up"}
             onTouchStart={async (e) =>
-              await handleTouchStart(e, 'MoveForward')
+              await handleTouchStart(e, Command.MoveForward)
             }
             onTouchMove={async (e) =>
-              await handleTouchMove(e, 'MoveForward')
+              await handleTouchMove(e, Command.MoveForward)
             }
             onTouchEnd={async (e) =>
-              await handleTouchEnd(e, 'MoveForward')
+              await handleTouchEnd(e, Command.MoveForward)
             }
           />
           <Controller
             position={"down"}
             onTouchStart={async (e) =>
-              await handleTouchStart(e, 'MoveBackward')
+              await handleTouchStart(e, Command.MoveBackward)
             }
             onTouchMove={async (e) =>
-              await handleTouchMove(e, 'MoveBackward')
+              await handleTouchMove(e, Command.MoveBackward)
             }
             onTouchEnd={async (e) =>
-              await handleTouchEnd(e, 'MoveBackward')
+              await handleTouchEnd(e, Command.MoveBackward)
             }
           />
         </div>
@@ -373,26 +328,22 @@ function App(){
           <Controller
             position={"left"}
             onTouchStart={async (e) =>
-              await handleTouchStart(e, 'TurnLeft')
+              await handleTouchStart(e, Command.TurnLeft)
             }
             onTouchMove={async (e) =>
-              await handleTouchMove(e, 'TurnLeft')
+              await handleTouchMove(e, Command.TurnLeft)
             }
-            onTouchEnd={async (e) => 
-              await handleTouchEnd(e, 'TurnLeft')
-            }
+            onTouchEnd={async (e) => await handleTouchEnd(e, Command.TurnLeft)}
           />
           <Controller
             position={"right"}
             onTouchStart={async (e) =>
-              await handleTouchStart(e, 'TurnRight')
+              await handleTouchStart(e, Command.TurnRight)
             }
             onTouchMove={async (e) =>
-              await handleTouchMove(e, 'TurnRight')
+              await handleTouchMove(e, Command.TurnRight)
             }
-            onTouchEnd={async (e) => 
-              await handleTouchEnd(e, 'TurnRight')
-            }
+            onTouchEnd={async (e) => await handleTouchEnd(e, Command.TurnRight)}
           />
         </div>
       </div>

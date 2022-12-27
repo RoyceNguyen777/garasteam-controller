@@ -6,7 +6,7 @@
   "scripts": {
     "start": "vite --open",
     "build": "vite build",
-    "preview": "vite preview"
+    "beta": "yarn build && surge -p dist -d https://garace.surge.sh"
   },
   "dependencies": {
     "react": "^18.2.0",
