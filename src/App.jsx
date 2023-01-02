@@ -16,6 +16,26 @@ import Controller from "./components/Controller";
 import RangeInput from "./components/RangeInput";
 import SwitchButton from "./components/SwitchButton";
 import React from "react";
+import Swal from 'sweetalert2'
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: "top-end",
+  showConfirmButton: false,
+  timer: 2000,
+  timerProgressBar: true,
+  didOpen: (toast) => {
+    toast.addEventListener("mouseenter", Swal.stopTimer);
+    toast.addEventListener("mouseleave", Swal.resumeTimer);
+  },
+});
+
+Toast.fire({
+  icon: "success",
+  title: "Hello there",
+});
+
+
 const Command = {
   // Reference: __ref.grobot.cpp
   // Port 4
@@ -61,10 +81,10 @@ const ble = {
   service: null,
   handle: {
     onclose: async () => {
-      console.log("device is disconnected");
+      console.warn("device is disconnected");
     },
     onopen: async () => {
-      console.log("devicec is connected");
+      console.warn("devicec is connected");
     },
     onmessage: async (event) => {
       // console.log("Received event", { event });
@@ -78,39 +98,195 @@ const ble = {
     write: async (text) => {
       const encoded = new TextEncoder().encode(text);
       // console.log("ble.func.write", { text, encoded });
-      await ble.charact.tx.writeValue(encoded);
+      if (ble.isConnected == false) return
+      await new Promise((resolve, reject) => {
+        ble.charact.tx.writeValue(encoded).then(() => {
+          console.log("send resolved lah");
+          resolve();
+        }).catch((err) => {
+          console.warn("send error", err)
+          reject()
+        });
+      })
+
     },
     setup: async () => {
+      // Must support exponential reconnect
+      // https://googlechrome.github.io/samples/web-bluetooth/automatic-reconnect.html
+      // function exponentialBackoff(max, delay, toTry, success, fail) {
+      //   toTry()
+      //     .then((result) => success(result))
+      //     .catch((_) => {
+      //       if (max === 0) {
+      //         return fail();
+      //       }
+      //       time("Retrying in " + delay + "s... (" + max + " tries left)");
+      //       setTimeout(function () {
+      //         exponentialBackoff(--max, delay * 2, toTry, success, fail);
+      //       }, delay * 1000);
+      //     });
+      // }
+      // function connect() {
+      // retry = 10, delay = 2
+      //   exponentialBackoff(10, 2,
+      //     function toTry() {
+      //       console.log("Attempt to connect")
+      //       ble.device.gatt.connect().then(server => {
+      //         return server.getPrimaryService(ble.uuid.service)
+      //       }).then(service => {
+      //         return service.getCharacteristic(ble.uuid.tx)
+      //       }).then(charact => {
+      //         ble.charact.tx = charact
+      //         ble.charact.tx.addEventListener('characteristicvaluechanged', ble.handle.onmessage)
+      //         ble.isConnected = true
+      //         console.log("Charact acquired")
+      //       }).catch(err => {
+      //         console.log(err)
+      //       })
+      //     },
+      //     function success() {
+      //       console.log("BLE: Connect sucecss")
+      //     },
+      //     function fail() {
+      //       console.error("BLE: Failed to connect")
+      //     }
+      //   )
+      // }
+      // function onDisconnected() {
+      //   console.log("Disconnected")
+      //   connect()
+      // }
+      // navigator.bluetooth.requestDevice({
+      //   optionalServices: [ble.uuid.service],
+      //   filters: [{namePrefix: 'G'}]
+      // }).then(device => {
+      //   ble.device = device
+      //   ble.device.addEventListener("gattserverdisconnected", onDisconnected);
+      //   return connect()
+      // }).catch(err => {
+      //   console.error("Ble: Error", err)
+      // })
       // step 1: open the panel of devices for user to select
+      // await new Promise((resolve, reject) => {
+      //   navigator.bluetooth.requestDevice({
+      //     optionalServices: [ble.uuid.service],
+      //     filters: [
+      //       { namePrefix: 'G' },
+      //       { namePrefix: 'ESP32' },
+      //       { namePrefix: 'B' }
+      //     ]
+      //   }).then(device => {
+      //     return device.gatt.connect()
+      //   }).then(server => {
+      //     return server.getPrimaryService(ble.uuid.service);
+      //   }).then(service => {
+      //     return service.getCharacteristic(ble.uuid.tx)
+      //   }).then(charact => {
+      //     ble.charact.tx = charact
+      //     // ble.charact.tx.startNotifications()
+      //     ble.charact.tx.addEventListener(
+      //       "characteristicvaluechanged",
+      //       ble.handle.onmessage
+      //     );
+      //     ble.isConnected = true
+      //     console.log("BLE: CONNECTED")
+      //     resolve()
+      //   })
+      //     .catch((err) => {
+      //     console.error("BLE", err)
+      //     reject()
+      //   })
+      // })
+      // navigator.bluetooth.requestDevice({
+      //   optionalServices: [ble.uuid.service],
+      //   filters: [
+      //     { namePrefix: "G" },
+      //     { namePrefix: "ESP32" },
+      //     { namePrefix: "B" },
+      //   ],
+      // }).then(device => {
+      // });
+      // requestDevice will raise exception when user cancel, thus code break header
+      // ble.device.addEventListener("gattserverdisconnected", ble.handle.onclose);
+      // start the connect sequence to the server, effectively setup the connection, this is step 2
+      // ble.device.gatt.connect();
+      // console.log("BLE: GATT CONNECTED");
+      // ble.server = await ble.device.gatt.connect();
+      // console.log("BLE: SERVER CONNECTED");
+      // ble.service = await ble.server.getPrimaryService(ble.uuid.service);
+      // console.log("BLE: SERVICE CONNECTED");
+      // ble.charact.tx = await ble.service.getCharacteristic(ble.uuid.tx);
+      // console.log("BLE: CHARACT TX CONNECTED");
+      // // ble.charact.rx = await ble.service.getCharacteristic(ble.uuid.rx);
+      // // console.log("BLE: CHARACT RX CONNECTED");
+      // ble.charact.tx.startNotifications();
+      // ble.charact.tx.addEventListener(
+      //   "characteristicvaluechanged",
+      //   ble.handle.onmessage
+      // );
+      // ble.isConnected = true;
+      // window.setConnectedState(true);
+      // ble.device.gatt.connect();
+      // console.log("BLE: GATT CONNECTED");
+      // ble.server = await ble.device.gatt.connect();
+      // console.log("BLE: SERVER CONNECTED");
+      // ble.service = await ble.server.getPrimaryService(ble.uuid.service);
+      // console.log("BLE: SERVICE CONNECTED");
+      // ble.charact.tx = await ble.service.getCharacteristic(ble.uuid.tx);
+      // console.log("BLE: CHARACT TX CONNECTED");
+      // // ble.charact.rx = await ble.service.getCharacteristic(ble.uuid.rx);
+      // // console.log("BLE: CHARACT RX CONNECTED");
+      // ble.charact.tx.startNotifications();
+      // ble.charact.tx.addEventListener(
+      //   "characteristicvaluechanged",
+      //   ble.handle.onmessage
+      // );
+      // ble.isConnected = true;
+      // window.setConnectedState(true);
+      //
+
+      async function connect() {
+        Toast.fire({
+          icon: "success",
+          title: "Connecting...",
+        });
+        ble.isConnected = false
+        ble.charact.rx = null
+        ble.charact.tx = null
+        console.log("BLE: GATT CONNECTED");
+        ble.server = await ble.device.gatt.connect();
+        // await sleep(1000)
+        console.log("BLE: SERVER CONNECTED");
+        ble.service = await ble.server.getPrimaryService(ble.uuid.service);
+        // await sleep(1000)
+
+        console.log("BLE: SERVICE CONNECTED");
+        ble.charact.tx = await ble.service.getCharacteristic(ble.uuid.tx);
+        ble.charact.rx = await ble.service.getCharacteristic(ble.uuid.rx);
+        // await sleep(1000)
+
+        console.log("BLE: CHARACT TX CONNECTED");
+        // ble.charact.rx = await ble.service.getCharacteristic(ble.uuid.rx);
+        // console.log("BLE: CHARACT RX CONNECTED");
+        await ble.charact.rx.startNotifications();
+        ble.charact.rx.addEventListener(
+          "characteristicvaluechanged",
+          ble.handle.onmessage
+        );
+        ble.isConnected = true;
+        window.setConnectedState(true);
+        
+        // await send(Command.ServoAngle[4]);
+      }
+
       ble.device = await navigator.bluetooth.requestDevice({
         optionalServices: [ble.uuid.service],
         filters: [
-          { namePrefix: "G" },
-          { namePrefix: "ESP32" },
-          { namePrefix: "B" },
-        ],
-      });
-      // requestDevice will raise exception when user cancel, thus code break header
-      ble.device.addEventListener("gattserverdisconnected", ble.handle.onclose);
-      // start the connect sequence to the server, effectively setup the connection, this is step 2
-
-      ble.device.gatt.connect();
-      console.log("BLE: GATT CONNECTED");
-      ble.server = await ble.device.gatt.connect();
-      console.log("BLE: SERVER CONNECTED");
-      ble.service = await ble.server.getPrimaryService(ble.uuid.service);
-      console.log("BLE: SERVICE CONNECTED");
-      ble.charact.tx = await ble.service.getCharacteristic(ble.uuid.tx);
-      console.log("BLE: CHARACT TX CONNECTED");
-      ble.charact.rx = await ble.service.getCharacteristic(ble.uuid.rx);
-      console.log("BLE: CHARACT RX CONNECTED");
-      ble.charact.rx.startNotifications();
-      ble.charact.rx.addEventListener(
-        "characteristicvaluechanged",
-        ble.handle.onmessage
-      );
-      ble.isConnected = true;
-      window.setConnectedState(true);
+          {namePrefix: 'G'}
+        ]
+      })
+      ble.device.addEventListener("gattserverdisconnected", async () => {await connect()});
+      await connect()
     },
   },
 };
@@ -132,8 +308,8 @@ async function disconnect(){
 
 async function send(command){
   console.log("send", command)
-  if (ble.isConnected){
-    await ble.func.write(command)
+  if (window.ble.isConnected){
+    await window.ble.func.write(command)
     await sleep(33)
   }
 }
@@ -235,7 +411,7 @@ async function sendToDevice(){
 
 setInterval(async () => {
   await sendToDevice()
-}, 100)
+}, 200)
 
 
 async function handleTouchStart(event, command){

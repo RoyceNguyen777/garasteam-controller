@@ -6,13 +6,15 @@
   "scripts": {
     "start": "vite --open",
     "build": "vite build",
-    "beta": "yarn build && surge -p dist -d https://garace.surge.sh"
+    "beta": "yarn build && surge -p dist -d https://garace.surge.sh",
+    "beta2": "yarn build && surge -p dist -d https://garace2.surge.sh"
   },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "styled-components": "^5.3.6",
-    "surge": "^0.23.1"
+    "surge": "^0.23.1",
+    "sweetalert2": "^11.6.16"
   },
   "devDependencies": {
     "@types/react": "^18.0.26",
