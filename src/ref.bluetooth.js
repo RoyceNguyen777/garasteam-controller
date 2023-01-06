@@ -39,14 +39,15 @@ class BluetoothDevice {
       this.device = device;
       // Attach events handler if user have selected
       device.addEventListener("gattserverdisconnected", async () => {
-        console.warn("ble/ device disconnected");
+        console.error("ble/ device DISCONNECTED");
         await this.connectDevice(device);
       });
       // await connectDevice(device);
 
       return device;
-    } catch (DOMException) {
+    } catch (err) {
       this.device = null;
+      console.warn("ble/ requestDevice", err);
       return null;
     }
   };
@@ -63,32 +64,38 @@ class BluetoothDevice {
       this.device.charact = await this.device.service.getCharacteristic(
         "0000ffe1-0000-1000-8000-00805f9b34fb"
       );
+      this.device.charactRx = await this.device.service.getCharacteristic(
+        "0000ffe1-0000-1000-8000-00805f9b34fb"
+      );
       console.log("ble/ start noti");
-      await this.device.charact.startNotifications();
-      this.device.charact.addEventListener(
+      await this.device.charactRx.startNotifications();
+      this.device.charactRx.addEventListener(
         "characteristicvaluechanged",
         async (event) => {
           // await this.onmessage(event);
-          const text = new TextDecoder().decode(event.target.value)
-          this.buffer += text
-          this.buffer = this.buffer.replace('\r', '')
+          const text = new TextDecoder().decode(event.target.value);
+          this.buffer += text;
+          this.buffer = this.buffer.replace("\r", "");
 
-          this.debug && console.log(this.buffer)
+          this.debug && console.log(this.buffer);
 
           // segment to right newline and then splitlines
-          const segment = this.buffer.substring(0,this.buffer.lastIndexOf('\n') + 1)
+          const segment = this.buffer.substring(
+            0,
+            this.buffer.lastIndexOf("\n") + 1
+          );
           this.buffer = this.buffer.substring(
-            this.buffer.lastIndexOf('\n') + 1,
+            this.buffer.lastIndexOf("\n") + 1,
             this.buffer.length
-          )
-          const lines = segment.split('\n')
+          );
+          const lines = segment.split("\n");
           lines.forEach(async (line) => {
-            await this.onmessage(line)
+            await this.onmessage(line);
             // internal process of line for unity
-            if (line.startsWith('#')) {
-              await this._processUnityResponse(line)
+            if (line.startsWith("#")) {
+              await this._processUnityResponse(line);
             }
-          })
+          });
         }
       );
       this.device.isConnected = true;
@@ -117,29 +124,28 @@ class BluetoothDevice {
     const encoded = new TextEncoder().encode(text);
     // console.log("ble.func.write", { text, encoded });
     if (this.device.isConnected != true) {
-      console.warn("device not connected")
+      console.warn("ble/ write will wait")
       while (this.device.isConnected != true) {
         await new Promise((rs,rj)=>{setTimeout(rs,10)})
       }
     }
     try {
-      await new Promise((resolve, reject) => {
-        this.device.charact
-          .writeValue(encoded)
-          .then(() => {
-            // console.log("ble/ send ok");
-            resolve(true);
-            
-          })
-          .catch((err) => {
-            // console.warn("ble/ send error", err);
-            resolve(false)
-          });
-      });
-
+      // await new Promise((resolve, reject) => {
+      //   this.device.charact
+      //     .reliableWrite(encoded)
+      //     .then(() => {
+      //       console.log("ble/ send ok");
+      //       resolve(true);
+      //     })
+      //     .catch((err) => {
+      //       console.warn("ble/ send error", err);
+      //       resolve(false);
+      //     });
+      // });
+      await this.device.charact.writeValue(encoded)
     }
     catch (err) {
-      
+      console.error('ble/ writeDevice', {err, encoded})
     }
   };
 
@@ -155,32 +161,45 @@ class BluetoothDevice {
     const VERSION = 0
     var attempts = 0
     
-    
-    const id = this._msgid()
-    const parameters = [
-      '#', id, VERSION, command, ...params
-    ]
-    var sendString = parameters.join('`') + '\n'
-    this.debug && console.log('sendString', sendString)
-    // place ack signal wait
-    this.mailbox.ack[id] = false
-    this.mailbox.done[id] = false
-    this.mailbox.value[id] = null
-    // place done signal wait
-    
-    
-    await this.writeDevice(sendString)
-    this.unityMessageCount += 1;
-    // wait for ack command
 
-    if (options.waitResponse == true) {
-      while (this.mailbox.ack[id] == false || this.mailbox.done[id] == false) {
-        await sleep(1);
-      }
-      // console.log("acked and done", this.mailbox.value[id])
-      return this.mailbox.value[id];
+    while (true) {
+      try {
 
-    }
+        const id = this._msgid()
+        const parameters = [
+          '#', id, VERSION, command, ...params
+        ]
+        var sendString = parameters.join('`') + '\n'
+        this.debug && console.log('sendString', sendString)
+        // place ack signal wait
+        this.mailbox.ack[id] = false
+        this.mailbox.done[id] = false
+        this.mailbox.value[id] = null
+        // place done signal wait
+        
+        
+        await this.writeDevice(sendString)
+        this.unityMessageCount += 1;
+        // wait for ack command
+        if (options.nowait) return null
+    
+        var future = new Date().getTime() + 3000
+        while (this.mailbox.ack[id] == false || this.mailbox.done[id] == false) {
+          if (new Date().getTime() > future) {
+            throw new DOMException("timed out without response, retrying")
+          }
+          await sleep(1);
+        }
+        // console.log("acked and done", this.mailbox.value[id])
+        return this.mailbox.value[id];
+
+      }  
+      catch (DOMException) {
+        console.warn("ble/ resend now, maybe lagged")
+
+      }  
+    }  
+    
   }
 }
 
@@ -201,12 +220,14 @@ setTimeout(async () => {
 
 
   window.ble = ble
-  while (true) {
+  let ts = new Date().getTime()
+  while (new Date().getTime() < ts + 20000) {
     // await ble.writeDevice("#1`10`12`0\n")
     // await ble.writeDevice("#1`10`12`1\n")
     await ble.writeCommand(12, [0])
-    await ble.writeCommand(12, [1])
+    await ble.writeCommand(12, [0])
     // await sleep(300)
   }
+  console.log("ble/ STOPPED")
 });
 
