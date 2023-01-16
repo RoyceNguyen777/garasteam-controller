@@ -5,6 +5,9 @@ import { inputBg } from '../assets/icons'
 const InputRange = styled.input.attrs({
   type: "range",
 })`
+   @media screen and (max-width: 750px ) {
+      width: 250px;
+    }
     width: 400px;
     -webkit-appearance: none;
     background-image: ${props => `url(${props.bg})`};

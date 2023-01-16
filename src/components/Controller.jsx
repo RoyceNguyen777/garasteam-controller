@@ -7,6 +7,10 @@ const ControllerButton = styled(Button)`
     background-color: transparent;
     border: none;
     color: #FF8C02;
+    @media screen and (max-height: 550px ) {
+        width: 160px;
+        height: 160px;
+    }
     width: 200px;
     height: 200px;
     font-size: 180px;   

@@ -8,7 +8,7 @@ export const Button = styled.button`
   cursor: pointer;
   border-radius: 50%;
   border: ${props => !props.iconSwitch ? "2px solid #CEBDCD" : "none"} ;
-  background-color: ${props => !props.background ? "#CA1617" : props.background};
+  background-color: ${props => props.background};
   background-image: ${props => `url(${props.iconSwitch})`} ;
   background-repeat:no-repeat;
   background-position:center;
@@ -16,9 +16,19 @@ export const Button = styled.button`
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 `
 
-export default function SwitchButton({ handleTurnOn, handleTurnOff, iconTurnOn, iconTurnOff, icon, onClick, handleSetState, ...rest }) {
+export default function SwitchButton({
+  handleTurnOn,
+  handleTurnOff,
+  iconTurnOn,
+  iconTurnOff,
+  icon,
+  onClick,
+  handleSetState,
+  backgroundColorTurnOn = "green",
+  backgroundColorTurnOff = "#CA1617",
+  ...rest
+}) {
   const [isTurnOn, setIsTurnOn] = useState(false)
-
   const handleClick = () => {
     if (!icon) setIsTurnOn(!isTurnOn)
     onClick?.()
@@ -35,10 +45,11 @@ export default function SwitchButton({ handleTurnOn, handleTurnOff, iconTurnOn, 
 
   return (
     <Button
-      background={isTurnOn && "green"}
+      background={isTurnOn ? backgroundColorTurnOn : backgroundColorTurnOff}
       onClick={handleClick}
       iconSwitch={!icon ? !isTurnOn ? iconTurnOn : iconTurnOff : icon}
       value={isTurnOn}
-      {...rest} />
+      {...rest}
+    />
   )
 }

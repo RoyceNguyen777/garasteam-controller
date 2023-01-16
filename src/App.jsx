@@ -15,7 +15,7 @@ import {
 import Controller from "./components/Controller";
 import RangeInput from "./components/RangeInput";
 import SwitchButton from "./components/SwitchButton";
-import React from "react";
+import React, { useState } from "react";
 import Swal from 'sweetalert2'
 
 const Toast = Swal.mixin({
@@ -275,17 +275,17 @@ const ble = {
         );
         ble.isConnected = true;
         window.setConnectedState(true);
-        
+
         // await send(Command.ServoAngle[4]);
       }
 
       ble.device = await navigator.bluetooth.requestDevice({
         optionalServices: [ble.uuid.service],
         filters: [
-          {namePrefix: 'G'}
+          { namePrefix: 'G' }
         ]
       })
-      ble.device.addEventListener("gattserverdisconnected", async () => {await connect()});
+      ble.device.addEventListener("gattserverdisconnected", async () => { await connect() });
       await connect()
     },
   },
@@ -293,22 +293,22 @@ const ble = {
 window.ble = ble;
 
 
-async function connect(){
+async function connect() {
   await ble.func.setup()
   await send(Command.ServoModeOff)
 
   await window.setCurrentRange(window.currentRange)
 }
-async function disconnect(){
+async function disconnect() {
   await ble.device.gatt.disconnect()
   ble.isConnected = false
   // update the first led
   window.setConnectedState(false)
 }
 
-async function send(command){
+async function send(command) {
   console.log("send", command)
-  if (window.ble.isConnected){
+  if (window.ble.isConnected) {
     await window.ble.func.write(command)
     await sleep(33)
   }
@@ -324,15 +324,15 @@ const state = {
 window.state = state
 window.isSending = false
 
-async function sleep(ms){
+async function sleep(ms) {
   await new Promise((resolve, reject) => {
     setTimeout(() => {
       resolve()
-    },ms)
+    }, ms)
   })
 }
 
-async function sendToDevice(){
+async function sendToDevice() {
   if (window.isSending) return
   if (ble.isConnected == false) return
   window.isSending = true
@@ -342,10 +342,10 @@ async function sendToDevice(){
 
     if (state.MoveBackward && state.MoveForward ||
       (state.TurnLeft && state.TurnRight)
-    ){
+    ) {
       console.log("wtf");
       return
-    }  
+    }
 
     let count = 0
     if (state.MoveBackward) count += 1
@@ -353,27 +353,27 @@ async function sendToDevice(){
     if (state.TurnLeft) count += 1
     if (state.TurnRight) count += 1
 
-    if (count == 1){
-      if (state.MoveForward){
+    if (count == 1) {
+      if (state.MoveForward) {
         await send(Command.MoveForward)
       }
-      if (state.MoveBackward){
+      if (state.MoveBackward) {
         await send(Command.MoveBackward)
       }
-      if (state.TurnLeft){
+      if (state.TurnLeft) {
         await send(Command.TurnLeft)
       }
-      if (state.TurnRight){
+      if (state.TurnRight) {
         await send(Command.TurnRight)
       }
     }
-    else if (count == 2){
-      if (state.MoveForward){
+    else if (count == 2) {
+      if (state.MoveForward) {
         await send(Command.MoveForward)
         state.TurnLeft && await send(Command.TurnLeft)
         state.TurnRight && await send(Command.TurnRight)
       }
-      else if (state.MoveBackward){
+      else if (state.MoveBackward) {
         await send(Command.MoveBackward)
         state.TurnLeft && await send(Command.TurnRightBack)
         state.TurnRight && await send(Command.TurnLeftBack)
@@ -382,7 +382,7 @@ async function sendToDevice(){
     else if (count == 0) {
       await send(Command.MoveStop)
     }
-    
+
 
     // if (state.MoveForward){
     //   await send(Command.MoveForward)
@@ -400,8 +400,8 @@ async function sendToDevice(){
     //   await send(Command.TurnRight)
     //   isMoving = true
     // }
-  
-    
+
+
 
   }
   finally {
@@ -414,29 +414,37 @@ setInterval(async () => {
 }, 200)
 
 
-async function handleTouchStart(event, command){
+async function handleTouchStart(event, command) {
   state[command] = true
-  console.log({event,command,state})
+  console.log({ event, command, state })
   await sendToDevice()
 }
-async function handleTouchMove(event, command){
+async function handleTouchMove(event, command) {
   await sendToDevice()
 }
-async function handleTouchEnd(event, command){
+async function handleTouchEnd(event, command) {
   console.log({ event, command, state });
   state[command] = false
   await sendToDevice()
 }
 
-function App(){
+function App() {
   const [connectedState, setConnectedState] = React.useState(false)
   const [currentRange, setCurrentRange] = React.useState(7)
-
+  const [colorTurnOn, setColorTurnOn] = useState("green")
+  const [colorTurnOff, setColorTurnOff] = useState("#CA1617")
 
   window.setConnectedState = setConnectedState
   window.setCurrentRange = setCurrentRange
   window.currentRange = currentRange
 
+  const handleChangeColorButton = (turnOn, turnOff) => {
+    if (turnOn && turnOff) {
+      setColorTurnOff(turnOff)
+      setColorTurnOn(turnOn)
+    }
+    return
+  }
   const handleSetting = async () => {
     console.log("Setting");
     if (!ble.isConnected) {
@@ -478,6 +486,8 @@ function App(){
         <ul className="nav">
           <li className="menu-left">
             <SwitchButton
+              backgroundColorTurnOff={colorTurnOff}
+              backgroundColorTurnOn={colorTurnOn}
               handleTurnOff={() => {
                 console.log("Turn Off");
               }}
@@ -522,6 +532,7 @@ function App(){
         <div className="controller-left">
           <Controller
             position={"up"}
+            onClick={event => event.preventDefault()}
             onTouchStart={async (e) =>
               await handleTouchStart(e, 'MoveForward')
             }
@@ -534,6 +545,7 @@ function App(){
           />
           <Controller
             position={"down"}
+            onClick={event => event.preventDefault()}
             onTouchStart={async (e) =>
               await handleTouchStart(e, 'MoveBackward')
             }
@@ -548,25 +560,27 @@ function App(){
         <div className="controller-right">
           <Controller
             position={"left"}
+            onClick={event => event.preventDefault()}
             onTouchStart={async (e) =>
               await handleTouchStart(e, 'TurnLeft')
             }
             onTouchMove={async (e) =>
               await handleTouchMove(e, 'TurnLeft')
             }
-            onTouchEnd={async (e) => 
+            onTouchEnd={async (e) =>
               await handleTouchEnd(e, 'TurnLeft')
             }
           />
           <Controller
             position={"right"}
+            onClick={event => event.preventDefault()}
             onTouchStart={async (e) =>
               await handleTouchStart(e, 'TurnRight')
             }
             onTouchMove={async (e) =>
               await handleTouchMove(e, 'TurnRight')
             }
-            onTouchEnd={async (e) => 
+            onTouchEnd={async (e) =>
               await handleTouchEnd(e, 'TurnRight')
             }
           />
